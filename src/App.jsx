@@ -125,6 +125,45 @@ const Ann = ({ children, position }) => (
 
 const Label = ({ children }) => <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 6 }}>{children}</div>;
 
+const ScoresTable = ({ patient, compact }) => {
+  const p = patient;
+  const fs = compact ? 10.5 : 12;
+  const fsSmall = compact ? 9 : 10.5;
+  const cellPad = compact ? "6px 8px" : "8px 10px";
+  const rows = [
+    { measure: "K10", score: p.k10.total, interp: p.k10.severity, sub: null },
+    { measure: "PCL-5 (Total)", score: p.pcl5.total, interp: null, sub: `Re-Exp: ${p.pcl5.reexp} · Avoid: ${p.pcl5.avoid} · Cog/Mood: ${p.pcl5.negalt} · Arousal: ${p.pcl5.hyper}` },
+    { measure: "AUDIT", score: p.audit.total, interp: p.audit.severity, sub: null },
+    { measure: "DASS-21 (Total)", score: p.dass21.total, interp: null, sub: `Dep: ${p.dass21.dep} · Anx: ${p.dass21.anx} · Stress: ${p.dass21.stress}` },
+  ];
+  return (
+    <div>
+      <div style={{ fontSize: fs, fontWeight: 700, color: "#374151", fontFamily: "'Georgia', serif", marginBottom: 6 }}>Psychometric Testing:</div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Georgia', serif", fontSize: fs, color: "#374151" }}>
+        <thead>
+          <tr style={{ borderBottom: "2px solid #374151" }}>
+            <th style={{ textAlign: "left", padding: cellPad, fontWeight: 700 }}>Measure</th>
+            <th style={{ textAlign: "center", padding: cellPad, fontWeight: 700, width: 60 }}>Score</th>
+            <th style={{ textAlign: "left", padding: cellPad, fontWeight: 700 }}>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ borderBottom: "1px solid #D1D5DB" }}>
+              <td style={{ padding: cellPad }}>{r.measure}</td>
+              <td style={{ padding: cellPad, textAlign: "center" }}>{r.score}</td>
+              <td style={{ padding: cellPad }}>
+                {r.interp && <span>{r.interp}</span>}
+                {r.sub && <span style={{ fontSize: fsSmall, color: "#6B7280" }}>{r.sub}</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 /* ─── SCREENS ─── */
 
 const Dashboard = ({ onNav }) => {
@@ -225,9 +264,11 @@ const initialStructure = [
   { label: "Closing", desc: "Sign-off with contact details", source: "auto" },
 ];
 
-const NewReport = ({ onNav }) => {
-  const [type, setType] = useState("progress");
-  const [sel, setSel] = useState("jones");
+const NewReport = ({ onNav, reportType, setReportType, selectedPatient, setSelectedPatient }) => {
+  const type = reportType;
+  const setType = setReportType;
+  const sel = selectedPatient;
+  const setSel = setSelectedPatient;
   const [transcript, setTranscript] = useState("");
   const p = patients[sel];
   const structure = type === "progress" ? progressStructure : initialStructure;
@@ -273,18 +314,7 @@ const NewReport = ({ onNav }) => {
           {type === "initial" && (
             <Card>
               <Label>Questionnaire Scores (auto-included in report)</Label>
-              <div style={{ fontSize: 12, lineHeight: 1.7, color: "#374151" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 8px", backgroundColor: "#F0F4FF", borderRadius: 4, marginBottom: 3 }}><span style={{ fontWeight: 700 }}>K10: {p.k10.total}</span><span style={{ color: "#6B7280", fontSize: 11 }}>{p.k10.severity}</span></div>
-                <div style={{ padding: "4px 8px", backgroundColor: "#F9FAFB", borderRadius: 4, marginBottom: 3 }}>
-                  <div style={{ fontWeight: 700 }}>PCL-5: Total – {p.pcl5.total}</div>
-                  <div style={{ paddingLeft: 14, fontSize: 10, color: "#6B7280", marginTop: 1 }}>Re-Experiencing: {p.pcl5.reexp} · Avoidance: {p.pcl5.avoid} · Neg. Cognition & Mood: {p.pcl5.negalt} · Hyper-Arousal: {p.pcl5.hyper}</div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 8px", backgroundColor: "#F0F4FF", borderRadius: 4, marginBottom: 3 }}><span style={{ fontWeight: 700 }}>AUDIT: {p.audit.total}</span><span style={{ color: "#6B7280", fontSize: 11 }}>{p.audit.severity}</span></div>
-                <div style={{ padding: "4px 8px", backgroundColor: "#F9FAFB", borderRadius: 4 }}>
-                  <div style={{ fontWeight: 700 }}>DASS21: Total {p.dass21.total}</div>
-                  <div style={{ paddingLeft: 14, fontSize: 10, color: "#6B7280", marginTop: 1 }}>Depression: {p.dass21.dep} · Anxiety: {p.dass21.anx} · Stress: {p.dass21.stress}</div>
-                </div>
-              </div>
+              <ScoresTable patient={p} />
             </Card>
           )}
 
@@ -337,9 +367,9 @@ const NewReport = ({ onNav }) => {
   );
 };
 
-const EditorScreen = ({ onNav }) => {
-  const [type, setType] = useState("progress");
-  const [sel, setSel] = useState("jones");
+const EditorScreen = ({ onNav, reportType, setReportType, selectedPatient }) => {
+  const [type, setType] = [reportType, setReportType];
+  const sel = selectedPatient;
   const [feedback, setFeedback] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [feedbackHistory, setFeedbackHistory] = useState([]);
@@ -364,11 +394,9 @@ const EditorScreen = ({ onNav }) => {
     <div>
       <StepIndicator steps={["Select Patient", "Paste Transcript", "Generate", "Review & Edit", "Export"]} current={3} onNav={onNav} />
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[{ id: "initial", label: "Initial Report" }, { id: "progress", label: "Progress Report" }].map(t => (
-          <button key={t.id} onClick={() => setType(t.id)} style={{ padding: "5px 14px", borderRadius: 20, border: type === t.id ? "2px solid #1B2D4F" : "1px solid #D1D5DB", backgroundColor: type === t.id ? "#1B2D4F" : "#fff", color: type === t.id ? "#fff" : "#6B7280", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{t.label}</button>
-        ))}
-        <span style={{ fontSize: 12, color: "#1B2D4F", fontWeight: 600, alignSelf: "center", marginLeft: 8 }}>{patients[sel].name}</span>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
+        <span style={{ padding: "5px 14px", borderRadius: 20, backgroundColor: "#1B2D4F", color: "#fff", fontSize: 11, fontWeight: 600 }}>{type === "initial" ? "Initial Report" : "Progress Report"}</span>
+        <span style={{ fontSize: 12, color: "#1B2D4F", fontWeight: 600 }}>{patients[sel].name}</span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "150px 1fr 260px", gap: 14 }}>
@@ -411,6 +439,8 @@ const EditorScreen = ({ onNav }) => {
                   </div>
                   {isEditing ? (
                     <textarea ref={editRef} value={getContent(s)} onChange={e => setContent(s, e.target.value)} onBlur={() => setEditingId(null)} style={{ width: "100%", minHeight: Math.max(80, getContent(s).split("\n").length * 22), padding: 8, borderRadius: 4, border: "1px solid #BBF7D0", fontSize: 12.5, lineHeight: 1.7, color: "#374151", fontFamily: "'Georgia', serif", resize: "vertical", backgroundColor: "#FAFFFE", boxSizing: "border-box" }} />
+                  ) : s.id === "testing" ? (
+                    <ScoresTable patient={patients[sel]} />
                   ) : (
                     <div style={{ fontSize: 12.5, lineHeight: 1.7, color: "#374151", whiteSpace: "pre-wrap", fontFamily: "'Georgia', serif" }}>{getContent(s)}</div>
                   )}
@@ -464,12 +494,12 @@ const EditorScreen = ({ onNav }) => {
   );
 };
 
-const ExportScreen = ({ onNav }) => {
-  const type = "progress";
-  const sel = "jones";
+const ExportScreen = ({ onNav, reportType, selectedPatient }) => {
+  const type = reportType;
+  const sel = selectedPatient;
   const p = patients[sel];
-  const sections = reportData[type][sel];
-  const initialSections = reportData.initial[sel];
+  const sections = reportData[type]?.[sel] || reportData.initial.jones;
+  const initialSections = reportData.initial?.[sel];
   const isProgress = type === "progress";
   const filename = isProgress ? `Progress${p.reportNum}_${p.name.split(" ").pop()}_${p.pmkeys}` : `Initial_${p.name.split(" ").pop()}_${p.pmkeys}`;
 
@@ -485,7 +515,10 @@ const ExportScreen = ({ onNav }) => {
       <StepIndicator steps={["Select Patient", "Paste Transcript", "Generate", "Review & Edit", "Export"]} current={4} onNav={onNav} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Label>PDF Preview</Label>
+          <div>
+            <Label>PDF Preview</Label>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#1B2D4F", marginTop: 2 }}>{isProgress ? "Progress Report" : "Initial Report"} — {p.name}</div>
+          </div>
 
           <PdfPage pageLabel="Page 1">
             <div style={{ textAlign: "center", marginBottom: 16 }}>
@@ -501,6 +534,8 @@ const ExportScreen = ({ onNav }) => {
                     <div style={{ marginBottom: 2 }}>Name: {p.name}</div>
                     <div style={{ marginBottom: 14 }}>PMKeyS: {p.pmkeys}</div>
                   </>
+                ) : s.id === "testing" ? (
+                  <ScoresTable patient={p} compact />
                 ) : (
                   <div>{s.content}</div>
                 )}
@@ -530,6 +565,8 @@ const ExportScreen = ({ onNav }) => {
                         <div style={{ marginBottom: 2 }}>Name: {p.name}</div>
                         <div style={{ marginBottom: 14 }}>PMKeyS: {p.pmkeys}</div>
                       </>
+                    ) : s.id === "testing" ? (
+                      <ScoresTable patient={p} compact />
                     ) : (
                       <div>{s.content}</div>
                     )}
@@ -576,6 +613,8 @@ const ExportScreen = ({ onNav }) => {
 
 export default function App() {
   const [screen, setScreen] = useState(screens.DASHBOARD);
+  const [reportType, setReportType] = useState("initial");
+  const [selectedPatient, setSelectedPatient] = useState("jones");
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F6F8", fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif", zoom: 1.2 }}>
       <div style={{ backgroundColor: "#1B2D4F", padding: "9px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -590,9 +629,9 @@ export default function App() {
       </div>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "20px 16px" }}>
         {screen === screens.DASHBOARD && <Dashboard onNav={setScreen} />}
-        {screen === screens.NEW_REPORT && <NewReport onNav={setScreen} />}
-        {screen === screens.EDITOR && <EditorScreen onNav={setScreen} />}
-        {screen === screens.EXPORT && <ExportScreen onNav={setScreen} />}
+        {screen === screens.NEW_REPORT && <NewReport onNav={setScreen} reportType={reportType} setReportType={setReportType} selectedPatient={selectedPatient} setSelectedPatient={setSelectedPatient} />}
+        {screen === screens.EDITOR && <EditorScreen onNav={setScreen} reportType={reportType} setReportType={setReportType} selectedPatient={selectedPatient} />}
+        {screen === screens.EXPORT && <ExportScreen onNav={setScreen} reportType={reportType} selectedPatient={selectedPatient} />}
       </div>
     </div>
   );
